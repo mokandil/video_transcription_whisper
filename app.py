@@ -10,6 +10,7 @@ from pytube import YouTube
 temp_dir = "temp_files"
 os.makedirs(temp_dir, exist_ok=True)
 
+# App title and instructions
 st.title('Video Transcription App with Whisper')
 st.subheader('Choose your input method')
 
@@ -29,6 +30,15 @@ elif input_method == "Enter a YouTube URL":
     youtube_url = st.text_input("Paste a YouTube video URL here:")
 
 def download_youtube_video(url):
+    """
+    Downloads a YouTube video from the given URL and returns the path to the downloaded video file.
+
+    Args:
+        url (str): The URL of the YouTube video.
+
+    Returns:
+        str: The path to the downloaded video file.
+    """
     yt = YouTube(url)
     stream = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution').desc().first()
     temp_video_path = os.path.join(temp_dir, yt.title.replace("/", "_") + ".mp4")  # Replace "/" to avoid file path issues
@@ -36,6 +46,16 @@ def download_youtube_video(url):
     return temp_video_path
 
 def transcribe_video(video_file_path, model_size):
+    """
+    Transcribes the audio from a video file using a specified model size.
+
+    Args:
+        video_file_path (str): The path to the video file.
+        model_size (str): The size of the model to use for transcription.
+
+    Returns:
+        str: The transcribed text from the video.
+    """
     audio_file_path = os.path.join(temp_dir, "temp_audio.wav")
     progress_bar = st.progress(0)
     st.text("Preparing video and audio files...")
@@ -60,6 +80,7 @@ def transcribe_video(video_file_path, model_size):
 
     return text
 
+# Transcription process and display
 if uploaded_file is not None or youtube_url:
     if st.button('Transcribe'):
         try:
@@ -104,5 +125,6 @@ if uploaded_file is not None or youtube_url:
             st.write("An error occurred during transcription:")
             st.write(str(e))
 
+# Button to start a new transcription
 if st.button('Start New Transcription'):
     st.experimental_rerun()
