@@ -4,53 +4,46 @@ import os
 import tempfile
 from moviepy.editor import VideoFileClip
 import whisper
+from pytube import YouTube
 
 # Folder for temporary files
 temp_dir = "temp_files"
 os.makedirs(temp_dir, exist_ok=True)
 
-# Add title and instructions to the user
 st.title('Video Transcription App with Whisper')
-st.subheader('Upload your video file below')
+st.subheader('Choose your input method')
 
 # Model selection
 model_sizes = ["tiny", "base", "small", "medium", "large"]
 selected_model_size = st.selectbox('Select Whisper model size:', model_sizes, index=model_sizes.index("base"))
 
-# File uploader
-uploaded_file = st.file_uploader("Choose a video file...", type=["mp4", "mov", "avi", "mkv"])
+# Input method selection
+input_method = st.radio("Do you want to upload a video or enter a YouTube URL?", ("Upload a video", "Enter a YouTube URL"))
 
-# Function to transcribe the video  and return the text
-def transcribe_video(video_file_buffer, model_size):
-    """
-    Transcribes the audio from a video file.
+uploaded_file = None
+youtube_url = ""
 
-    Args:
-        video_file_buffer (file-like object): The video file to transcribe.
-        model_size (str): The size of the model to use for transcription.
+if input_method == "Upload a video":
+    uploaded_file = st.file_uploader("Choose a video file...", type=["mp4", "mov", "avi", "mkv"])
+elif input_method == "Enter a YouTube URL":
+    youtube_url = st.text_input("Paste a YouTube video URL here:")
 
-    Returns:
-        str: The transcribed text from the video.
+def download_youtube_video(url):
+    yt = YouTube(url)
+    stream = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution').desc().first()
+    temp_video_path = os.path.join(temp_dir, yt.title.replace("/", "_") + ".mp4")  # Replace "/" to avoid file path issues
+    stream.download(output_path=temp_dir, filename=yt.title.replace("/", "_") + ".mp4")
+    return temp_video_path
 
-    Raises:
-        FileNotFoundError: If the video file or audio file does not exist.
-
-    """
-    video_file_path = os.path.join(temp_dir, "temp_video.mp4")
+def transcribe_video(video_file_path, model_size):
     audio_file_path = os.path.join(temp_dir, "temp_audio.wav")
-
-    # Write the uploaded file to the specific temporary folder
-    with open(video_file_path, "wb") as f:
-        f.write(video_file_buffer.read())
-
-    # Load the video file and extract audio
-    video = VideoFileClip(video_file_path)
     progress_bar = st.progress(0)
     st.text("Preparing video and audio files...")
 
-    # Actual transcription process with progress and time display
     try:
         with VideoFileClip(video_file_path) as video:
+            if video.audio is None:
+                raise ValueError("The video file does not contain an audio track.")
             video.audio.write_audiofile(audio_file_path, codec='pcm_s16le', nbytes=2, fps=16000)
         progress_bar.progress(50)
 
@@ -60,20 +53,30 @@ def transcribe_video(video_file_buffer, model_size):
         st.text("Transcription completed.")
         text = result['text']
     finally:
-        os.remove(video_file_path)
-        os.remove(audio_file_path)
+        if os.path.exists(video_file_path):
+            os.remove(video_file_path)
+        if os.path.exists(audio_file_path):
+            os.remove(audio_file_path)
 
     return text
 
-# Transcribe the video and display the transcription 
-# if the user has uploaded a file and clicked the "Transcribe" button
-if uploaded_file is not None:
+if uploaded_file is not None or youtube_url:
     if st.button('Transcribe'):
         try:
             st.write("Transcribing...")
-            transcript = transcribe_video(uploaded_file, selected_model_size)
+            video_file_path = ""
+            if uploaded_file:
+                video_file_path = os.path.join(temp_dir, uploaded_file.name)
+                with open(video_file_path, "wb") as f:
+                    f.write(uploaded_file.read())
+            elif youtube_url:
+                video_file_path = download_youtube_video(youtube_url)
+                st.write(f"Downloaded '{video_file_path}' for transcription.")
+            
+            transcript = transcribe_video(video_file_path, selected_model_size)
             transcript_area = st.text_area("Transcription:", transcript, height=300)
-            html_code = f"""
+            # JavaScript for copy to clipboard
+            copy_button_code = f"""
                 <html>
                 <body>
                 <textarea id="textCopy" style="display:none;">{transcript}</textarea>
@@ -96,11 +99,10 @@ if uploaded_file is not None:
                 </body>
                 </html>
             """
-            components.html(html_code, height=50)
+            components.html(copy_button_code, height=50)
         except Exception as e:
             st.write("An error occurred during transcription:")
             st.write(str(e))
 
-# Button to start a new transcription
 if st.button('Start New Transcription'):
     st.experimental_rerun()
