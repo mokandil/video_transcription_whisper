@@ -1,10 +1,11 @@
 # Video Transcription App with Whisper
 
-This project is a Streamlit-based web application that uses OpenAI's Whisper model to transcribe spoken content from video files. It provides a simple user interface to upload videos, select the desired Whisper model for transcription accuracy, and display or copy the transcription results.
+This project is a Streamlit-based web application that uses OpenAI's Whisper model to transcribe spoken content from video files. It provides a simple user interface to upload videos or insert a YouTube video URL, select the desired Whisper model for transcription accuracy, and display or copy the transcription results.
 
 ## Features
 
 - Upload video files in various formats (e.g., MP4, MOV, AVI).
+- Or insert a YouTube video URL to transcribe.
 - Select different sizes of the Whisper model based on accuracy needs and resource availability.
 - Transcribe audio content from video files to text.
 - Copy the transcribed text to the clipboard.
